@@ -7,6 +7,7 @@ from services.vector_store import VectorStoreService
 from core.exceptions import RAGException
 from config.settings import settings
 from typing import Dict
+import re
 
 class RAGService:
     def __init__(self):
@@ -51,8 +52,8 @@ class RAGService:
         
         retriever = self.vector_store_service.get_vectorstore(workspace).as_retriever(
             search_kwargs={
-                "k": 3,                # 減少檢索文檔數量，提高相關性
-                "score_threshold": 0.7  # 提高相似度閾值
+                "k": 5,                # 增加返回數量
+                "score_threshold": 0.5  # 降低閾值
             }
         )
         
@@ -64,12 +65,28 @@ class RAGService:
             chain_type_kwargs=chain_type_kwargs
         )
     
-    def ask(self, question: str, workspace: str = None) -> Dict:
+    def ask(self, question, workspace=None):
+        print(f"\n開始處理問題: '{question}'")
+        
+        # 獲取向量存儲
+        vectorstore = self.vector_store_service.get_vectorstore(workspace)
+        if not vectorstore:
+            print("錯誤: 向量存儲為空")
+            return {"status": "error", "message": "向量存儲未初始化"}
+        
+        # 直接使用向量存儲進行檢索
+        print("直接使用向量存儲進行檢索...")
+        direct_results = vectorstore.similarity_search(question, k=5)
+        print(f"直接檢索結果: 找到 {len(direct_results)} 個文檔")
+        for i, doc in enumerate(direct_results):
+            print(f"文檔 {i+1}:")
+            print(f"  內容: {doc.page_content[:100]}...")
+            print(f"  來源: {doc.metadata.get('source', 'unknown')}")
+            print(f"  標題: {doc.metadata.get('title', 'unknown')}")
+        
         try:
-            self.qa_chain = self._setup_qa_chain(workspace)
-            result = self.qa_chain.invoke({"query": question})
-            # 檢查是否有找到文檔
-            if not result.get('source_documents'):
+            # 如果沒有找到文檔
+            if not direct_results:
                 return {
                     "status": "success",
                     "data": {
@@ -79,28 +96,87 @@ class RAGService:
                     }
                 }
             
+            # 使用找到的文檔構建上下文
+            context = "\n\n".join([doc.page_content for doc in direct_results])
+            
+            # 構建更詳細的提示
+            prompt = f"""你是一個專業的技術顧問，請使用繁體中文回答問題。
+
+            以下是參考文檔內容：
+            {context}
+
+            使用者問題：{question}
+
+            回答要求：
+            1. 必須使用繁體中文回答，不要使用英文
+            2. 只使用參考文檔中的資訊來回答
+            3. 提供詳細且全面的回答，至少 1000 字
+            4. 如果文檔中沒有相關資訊，請直接說「抱歉，在提供的文檔中找不到相關資訊」
+            5. 回答要有條理，可以使用標題、項目符號或編號來組織內容
+            6. 如果需要引用原文，請將英文內容翻譯成中文
+            7. 盡可能提供具體的步驟、方法或範例
+            8. 確保回答的準確性和完整性
+
+            請以繁體中文回答："""
+            
+            # 直接使用 LLM 生成回答
+            response = self.llm.invoke(prompt)
+            answer = response.content
+            
             return {
                 "status": "success",
                 "data": {
                     "question": question,
-                    "answer": result['result'],
-                    "sources": [self._process_source(doc) for doc in result['source_documents']]
+                    "answer": answer,
+                    "sources": [self._process_source(doc) for doc in direct_results]
                 }
             }
         except Exception as e:
             raise RAGException(str(e))
     
     def _process_source(self, doc) -> Dict:
-        source_path = doc.metadata.get('source', '').lower()
-        is_code = any(source_path.endswith(ext) for ext in [
-            '.py', '.js', '.java', '.cpp', '.h', '.cs', 
-            '.go', '.rs', '.php', '.rb', '.tsx', '.jsx'
-        ])
+        # 提取原始內容
+        content = doc.page_content
+        
+        # 清理內容 - 移除模型生成的前綴和後綴
+        cleaned_content = content
+        
+        # 嘗試提取引號內的實際摘要 (如果存在)
+        quote_match = re.search(r'"([^"]+)"', content)
+        if quote_match:
+            cleaned_content = quote_match.group(1)
+        else:
+            # 移除常見的前綴
+            prefixes = [
+                "Here is a concise summary of the text, retaining key information and professional terminology:",
+                "Here is a concise summary:",
+                "Summary:",
+            ]
+            for prefix in prefixes:
+                if cleaned_content.startswith(prefix):
+                    cleaned_content = cleaned_content[len(prefix):].strip()
+            
+            # 移除常見的後綴
+            suffixes = [
+                "Summary length: approximately 15% of the original text.",
+                "This summary is about 20% of the original text.",
+            ]
+            for suffix in suffixes:
+                if cleaned_content.endswith(suffix):
+                    cleaned_content = cleaned_content[:-len(suffix)].strip()
+        
+        # 提取來源信息
+        source = doc.metadata.get('source', 'unknown')
+        title = doc.metadata.get('title', '')
+        
+        # 使用標題作為顯示名稱 (如果有)
+        display_name = title if title else source
+        
+        # 確保返回與 source_model 匹配的字段
         return {
-            "content": doc.page_content[:200],
-            "summary": self.generate_summary(doc.page_content, is_code),
-            "source": doc.metadata.get('source', 'unknown'),
-            "type": "code" if is_code else "document"
+            "content": cleaned_content,
+            "summary": cleaned_content[:200] + "..." if len(cleaned_content) > 200 else cleaned_content,
+            "source": display_name
         }
     
     def generate_summary(self, content: str, is_code: bool = False) -> str:
@@ -113,6 +189,7 @@ class RAGService:
                 1. 程式碼的主要功能
                 2. 關鍵的實作方法
                 3. 重要的依賴或引用
+                4. 以繁體中文為輸出語言
                 """
             else:
                 summary_prompt = """請為以下文檔內容生成一個簡短的摘要：
@@ -122,9 +199,11 @@ class RAGService:
                 1. 包含關鍵資訊
                 2. 清晰易懂
                 3. 突出重點
+                4. 以繁體中文為輸出語言
                 """
             
             response = self.llm.invoke(summary_prompt.format(content=content))
+            print(response.content)
             # 從 AIMessage 中提取文本內容
             return response.content if hasattr(response, 'content') else str(response)
             
