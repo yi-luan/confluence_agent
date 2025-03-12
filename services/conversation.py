@@ -49,14 +49,15 @@ class ConversationService:
         self._save_conversation(conversation_id)
         return conversation_id
     
-    def add_message(self, conversation_id: str, role: str, content: str):
+    def add_message(self, conversation_id: str, role: str, content: str, sources: List[Dict] = None):
         if conversation_id not in self.conversations:
             conversation_id = self.create_conversation()
         
         message = {
             "role": role,
             "content": content,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
+            "sources": sources if sources else []
         }
         
         self.conversations[conversation_id].append(message)
@@ -88,3 +89,27 @@ class ConversationService:
                 os.remove(file_path)
             except OSError:
                 pass
+    
+    def get_all_conversations(self) -> List[dict]:
+        """獲取所有對話的列表"""
+        self.cleanup_old_conversations()
+        
+        conversations = []
+        for conversation_id, messages in self.conversations.items():
+            # 獲取第一條用戶消息作為標題
+            title = "新對話"
+            for msg in messages:
+                if msg["role"] == "user":
+                    title = msg["content"][:30] + ("..." if len(msg["content"]) > 30 else "")
+                    break
+            
+            conversations.append({
+                "id": conversation_id,
+                "title": title,
+                "last_updated": self.conversation_times[conversation_id].isoformat(),
+                "message_count": len(messages)
+            })
+        
+        # 按最後更新時間排序，最新的在前面
+        conversations.sort(key=lambda x: x["last_updated"], reverse=True)
+        return conversations

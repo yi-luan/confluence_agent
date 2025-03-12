@@ -21,3 +21,7 @@ requests==2.32.3
 
 # 可選：如果需要 GPU 支援，可以改用 faiss-gpu
 # faiss-gpu==1.8.0
+
+# 新增的 faiss-cpu 和 huggingface-hub
+faiss-cpu
+huggingface-hub
