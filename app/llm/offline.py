@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from langchain_core.language_models import BaseChatModel
@@ -14,13 +15,15 @@ from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 
 from app.agent import prompts
+from app.rag.store import keyword_terms
 
 
 class ScriptedChatModel(BaseChatModel):
     """不連網、決定性的 Chat model。
 
     - 路由：問題含「誰」「聯絡」「分機」→ directory；含「你好」「謝謝」→ chitchat；其他 → knowledge
-    - 回答：把第一段參考資料的第一行內容與 [1] 串起來，方便驗證引用格式
+    - 改寫：「那 X 呢？」→ 把上一題的主詞換成 X
+    - 回答：從參考資料中挑出和問題關鍵詞重疊最多的一句（抽取式），附上 [編號]
     """
 
     model_name: str = "offline-scripted"
@@ -32,8 +35,13 @@ class ScriptedChatModel(BaseChatModel):
 
     def _respond(self, system: str, user: str) -> str:
         if system == prompts.CONDENSE_SYSTEM:
-            question = user.split("最新問題：")[-1]
-            return question.replace("那病假呢", "病假需要提前多久申請")
+            question = user.split("最新問題：")[-1].strip()
+            m = re.fullmatch(r"那(.+?)呢[？?]?", question)
+            previous = re.findall(r"user: (.+)", user)
+            if m and previous:
+                topic, last = m.group(1), previous[-1].strip()
+                return topic + last[len(topic) :] if len(last) > len(topic) else topic
+            return question
         if system == prompts.ROUTER_SYSTEM:
             if any(k in user for k in ("誰", "聯絡", "分機", "窗口")):
                 return "directory"
@@ -41,9 +49,18 @@ class ScriptedChatModel(BaseChatModel):
                 return "chitchat"
             return "knowledge"
         if system == prompts.ANSWER_SYSTEM:
-            context = user.split("【問題】")[0]
-            first = context.split("[1]", 1)[-1].strip().splitlines()[0]
-            return f"{first} [1]"
+            context, question = user.split("【問題】")
+            terms = set(keyword_terms(question))
+            best, best_score = "", -1
+            for n, block in re.findall(r"\[(\d+)\] (.*?)(?=\n\n\[\d+\] |\Z)", context, re.S):
+                for line in block.splitlines():
+                    line = line.strip(" -#*|")
+                    if len(line) < 6 or line.startswith("【"):
+                        continue
+                    score = sum(t in line.lower() for t in terms)
+                    if score > best_score:
+                        best, best_score = f"{line.replace('**', '')} [{n}]", score
+            return best or "知識庫中沒有足夠的資訊回答這個問題"
         if system == prompts.DIRECTORY_EXTRACT_SYSTEM:
             for kw in ("VPN", "報帳", "部署", "請假", "資安"):
                 if kw in user:

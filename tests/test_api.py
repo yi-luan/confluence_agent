@@ -7,7 +7,7 @@ def ask(client, question, **kw):
 def test_knowledge_question_returns_cited_answer_with_sources(client):
     body = ask(client, "特休要提前幾天申請？")
     assert body["route"] == "knowledge"
-    assert body["answer"].endswith("[1]")
+    assert "特休" in body["answer"] and body["answer"].endswith("]")
     assert body["sources"][0]["title"] == "請假規定"
     assert body["usage"]["llm_calls"] == 2  # route + answer（第一輪不需要改寫問題）
     assert body["usage"]["prompt_tokens"] > 0
