@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+eval/results/
+# 本機產生的索引與對話資料，避免把內部文件推上 GitHub
+*.faiss
+*.pkl
+data/
