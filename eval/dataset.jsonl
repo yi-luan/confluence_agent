@@ -1,0 +1,19 @@
+{"question": "特休要提前幾天申請？", "route": "knowledge", "expected_title": "請假規定", "must_include": ["3"]}
+{"question": "連續請一週特休要多早申請？", "route": "knowledge", "expected_title": "請假規定", "must_include": ["2 週"]}
+{"question": "病假超過幾天要附醫療證明？", "route": "knowledge", "expected_title": "請假規定", "must_include": ["3"]}
+{"question": "換新手機之後 VPN 登不進去怎麼辦？", "route": "knowledge", "expected_title": "VPN 與遠端工作", "must_include": ["MFA"]}
+{"question": "一週可以在家工作幾天？", "route": "knowledge", "expected_title": "VPN 與遠端工作", "must_include": ["2"]}
+{"question": "出差住台北一晚住宿費上限多少？", "route": "knowledge", "expected_title": "報帳流程", "must_include": ["3,500"]}
+{"question": "發票多久內要報帳？", "route": "knowledge", "expected_title": "報帳流程", "must_include": ["30"]}
+{"question": "星期五可以部署到正式環境嗎？", "route": "knowledge", "expected_title": "正式環境部署 SOP", "must_include": ["禁止"]}
+{"question": "部署後錯誤率多高要 rollback？", "route": "knowledge", "expected_title": "正式環境部署 SOP", "must_include": ["1%"]}
+{"question": "P1 事件要多久內回應？", "route": "knowledge", "expected_title": "On-call 值班制度", "must_include": ["15"]}
+{"question": "值班津貼一週多少錢？", "route": "knowledge", "expected_title": "On-call 值班制度", "must_include": ["3,000"]}
+{"question": "新人第一天幾點報到？", "route": "knowledge", "expected_title": "新人報到指南", "must_include": ["09:30"]}
+{"question": "可以把客戶資料貼到 ChatGPT 嗎？", "route": "knowledge", "expected_title": "資訊安全政策", "must_include": ["禁止"]}
+{"question": "密碼最少要幾個字元？", "route": "knowledge", "expected_title": "資訊安全政策", "must_include": ["12"]}
+{"question": "VPN 有問題要找誰？", "route": "directory", "must_include": ["陳冠宇"]}
+{"question": "報帳的窗口是誰，分機多少？", "route": "directory", "must_include": ["王怡君"]}
+{"question": "你好，你可以做什麼？", "route": "chitchat"}
+{"question": "公司股票代號是多少？", "route": "knowledge", "expected_title": null}
+{"question": "量子電腦的原理是什麼？", "route": "knowledge", "expected_title": null}
