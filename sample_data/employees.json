@@ -1,0 +1,8 @@
+[
+  {"name": "林雅婷", "english_name": "Tina Lin", "department": "人資部", "title": "人資專員", "email": "tina.lin@galaxy-tech.example", "extension": "1203", "responsibilities": "請假、特休、差勤系統、新人報到"},
+  {"name": "陳冠宇", "english_name": "Kevin Chen", "department": "資訊部", "title": "系統管理師", "email": "kevin.chen@galaxy-tech.example", "extension": "1401", "responsibilities": "VPN、MFA、筆電、AD 帳號、IT 服務台"},
+  {"name": "王怡君", "english_name": "Grace Wang", "department": "財務部", "title": "會計主任", "email": "grace.wang@galaxy-tech.example", "extension": "1502", "responsibilities": "報帳、費用報銷、發票、ERP 費用模組"},
+  {"name": "張書豪", "english_name": "Leo Chang", "department": "研發部", "title": "SRE 工程師", "email": "leo.chang@galaxy-tech.example", "extension": "1611", "responsibilities": "部署、Argo CD、Grafana、on-call、PagerDuty"},
+  {"name": "黃志明", "english_name": "Ming Huang", "department": "研發部", "title": "技術長", "email": "ming.huang@galaxy-tech.example", "extension": "1600", "responsibilities": "技術決策、緊急部署核准、P1 事件"},
+  {"name": "吳佩珊", "english_name": "Sandy Wu", "department": "資安小組", "title": "資安工程師", "email": "sandy.wu@galaxy-tech.example", "extension": "1420", "responsibilities": "資安事件通報、資安教育訓練、密碼政策"}
+]
