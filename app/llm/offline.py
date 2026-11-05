@@ -67,7 +67,8 @@ class ScriptedChatModel(BaseChatModel):
                     return kw
             return user[-4:]
         if system == prompts.DIRECTORY_ANSWER_SYSTEM:
-            return "查詢結果：" + user.split("【通訊錄查詢結果】")[-1].split("【問題】")[0].strip()
+            rows = user.split("【通訊錄查詢結果】")[-1].split("【問題】")[0].strip()
+            return "以下是相關的負責人：\n" + rows
         return "你好！我可以幫你查公司制度與技術文件。"
 
     def _generate(

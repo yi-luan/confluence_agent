@@ -102,7 +102,7 @@
       "file": ".github/workflows/ci.yml",
       "line": 38,
       "title": "CI：品質變差就擋下來",
-      "description": "## 三個 job\n\n1. **lint**：ruff 檢查程式風格\n2. **test**：起一個真的 PostgreSQL + pgvector，跑 18 個測試，**再跑檢索評估，hit@3 低於 85% 就失敗**\n3. **docker**：確認 image 能建置\n\n第 2 點是 LLM 應用特有的：程式邏輯沒錯，但改了切片大小或 prompt 可能讓**檢索品質變差**。把評估放進 CI，品質退步就不能 merge。\n\n舊版的 `azure-deploy.yml` 監聽的是 `main` 分支，但 repo 用的是 `master`，所以從來沒執行過。"
+      "description": "## 三個 job\n\n1. **lint**：ruff 檢查程式風格\n2. **test**：起一個真的 PostgreSQL + pgvector，跑 20 個測試，**再跑檢索評估，hit@3 低於 85% 就失敗**\n3. **docker**：確認 image 能建置\n\n第 2 點是 LLM 應用特有的：程式邏輯沒錯，但改了切片大小或 prompt 可能讓**檢索品質變差**。把評估放進 CI，品質退步就不能 merge。\n\n舊版的 `azure-deploy.yml` 監聽的是 `main` 分支，但 repo 用的是 `master`，所以從來沒執行過。"
     },
     {
       "file": "docker-compose.yml",
@@ -114,7 +114,13 @@
       "file": "tests/test_api.py",
       "line": 39,
       "title": "測試：不連網也能測 Agent",
-      "description": "## 測試策略\n\n- **資料庫用真的**：PostgreSQL + pgvector（CI 用 service container），因為向量查詢的行為用 mock 測不出來\n- **LLM 用假的**：`app/llm/offline.py` 依照 prompt 回傳可預期的內容，不花錢、結果固定\n\n18 個測試涵蓋：檢索、增量匯入、多輪改寫、拒答時不呼叫 LLM、SQL injection、API key 保護、指標輸出。\n\n>> pytest"
+      "description": "## 測試策略\n\n- **資料庫用真的**：PostgreSQL + pgvector（CI 用 service container），因為向量查詢的行為用 mock 測不出來\n- **LLM 用假的**：`app/llm/offline.py` 依照 prompt 回傳可預期的內容，不花錢、結果固定\n\n20 個測試涵蓋：檢索、增量匯入、多輪改寫、拒答時不呼叫 LLM、SQL injection、API key 保護、指標輸出。\n\n>> pytest"
+    },
+    {
+      "file": "app/static/index.html",
+      "line": 152,
+      "title": "聊天介面：引用可以點",
+      "description": "## 不需要建置的前端\n\n整個介面是一個 HTML 檔，由 FastAPI 在 `/` 直接提供：\n- **不載入任何外部 CDN 或字型**：在不能連外網的地端環境也能完整顯示（`tests/test_api.py` 有測試檢查頁面裡沒有 `https://`）\n- 支援深色模式、手機版\n\n`renderAnswer()` 會把回答裡的 `[1]` 換成按鈕，點下去就標出對應的來源卡片。\n\n### 一個容易忽略的 bug\n同一份文件可能有好幾個片段被檢索到，API 回傳時會**以文件去重**。如果前端直接拿 `[2]` 去找「第 2 份文件」，就會對錯。所以後端在每個來源附上 `refs`（這份文件涵蓋哪些編號），見 `app/chat_service.py` 的 `_sources()`。\n\n打開看看：\n>> uvicorn app.main:create_app --factory"
     }
   ]
 }

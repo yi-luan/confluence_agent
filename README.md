@@ -7,6 +7,10 @@
 
 LLM 可切換 **OpenAI / Azure OpenAI / Gemini / Ollama（本機）**，只要改環境變數。
 
+![聊天介面：回答附上可點擊的引用編號與來源卡片，並顯示路由類型、token 用量與延遲](docs/screenshot.jpg)
+
+<sub>截圖使用虛構公司的範例文件，以及不連網的離線示範模型（`LLM_PROVIDER=fake`）。深色模式：[docs/screenshot-dark.jpg](docs/screenshot-dark.jpg)</sub>
+
 ---
 
 ## 架構
@@ -54,6 +58,7 @@ docker compose up -d --build    # API + PostgreSQL + Prometheus + Grafana
 docker compose exec app python -m app.cli seed   # 灌入範例文件與員工資料
 ```
 
+- 聊天介面：http://localhost:8000
 - Swagger：http://localhost:8000/docs
 - Grafana：http://localhost:3000（admin / admin，已內建「Knowledge Agent」儀表板）
 
@@ -132,6 +137,7 @@ CI 會跑這個評估，**hit@3 低於 85% 就擋下 merge**，避免改壞檢�
 - **成本看得見**：每次 LLM 呼叫的 token 和延遲都會進 Prometheus，也會寫進 `messages` 資料表，可以直接用 SQL 分析每個模型、每條路由的花費。
 - **增量同步**：每份文件存 content hash，內容沒變就跳過，大型 Confluence space 重新同步很快。
 - **可測試**：LLM 和 embedding 都靠介面注入，測試用不連網的假模型，對真的 PostgreSQL + pgvector 跑。
+- **地端也能用的介面**：聊天介面是一個 HTML 檔，由後端直接提供，不載入任何外部字型或 CDN，在不能連外網的環境也能完整顯示。回答裡的 `[n]` 可以點，會標出對應的來源卡片。
 
 ## 專案結構
 
@@ -143,6 +149,7 @@ app/
   llm/          LLM / embedding provider 工廠、離線示範模型
   observability/ metrics、JSON logging、LLM callback
   rag/          loaders、切片、pgvector 混合檢索、匯入流程
+  static/       聊天介面（單一 HTML，不依賴外部 CDN）
 eval/           評估資料集與腳本
 sample_data/    虛構公司的範例文件與員工資料
 docker/         Prometheus、Grafana 設定與儀表板

@@ -7,9 +7,11 @@ import time
 import uuid
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models import BaseChatModel
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
@@ -26,6 +28,7 @@ from app.observability.metrics import HTTP_LATENCY, HTTP_REQUESTS
 from app.rag.store import VectorStore
 
 logger = logging.getLogger("app")
+STATIC_DIR = Path(__file__).parent / "static"
 
 
 @dataclass
@@ -120,6 +123,11 @@ def create_app(container: Container | None = None) -> FastAPI:
     @app.get("/metrics", include_in_schema=False)
     def metrics():
         return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+    @app.get("/", include_in_schema=False)
+    def index():
+        # 聊天介面是單一 HTML 檔，不依賴任何外部 CDN，地端隔離環境也能直接使用
+        return FileResponse(STATIC_DIR / "index.html")
 
     app.include_router(router)
     app.include_router(health_router)

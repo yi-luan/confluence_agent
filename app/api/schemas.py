@@ -18,6 +18,7 @@ class Source(BaseModel):
     space: str
     score: float
     snippet: str
+    refs: list[int] = Field(default_factory=list, description="回答中 [n] 引用對應到這份文件的編號")
 
 
 class Usage(BaseModel):

@@ -76,3 +76,16 @@ def test_health_and_request_id(client):
     r = client.get("/health", headers={"x-request-id": "abc123"})
     assert r.json()["status"] == "ok"
     assert r.headers["x-request-id"] == "abc123"
+
+
+def test_sources_map_citation_numbers_to_documents(client):
+    body = ask(client, "特休要提前幾天申請？")
+    refs = [n for s in body["sources"] for n in s["refs"]]
+    assert sorted(refs) == list(range(1, len(refs) + 1))  # 每個 [n] 都對應到唯一一份文件
+
+
+def test_chat_ui_is_served_without_external_assets(client):
+    r = client.get("/")
+    assert r.status_code == 200 and "text/html" in r.headers["content-type"]
+    assert "Knowledge Agent" in r.text
+    assert "https://" not in r.text  # 地端隔離環境：不依賴任何 CDN

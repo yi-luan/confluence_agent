@@ -31,17 +31,24 @@ class ChatResult:
 
 
 def _sources(docs: list[RetrievedChunk]) -> list[dict]:
-    """同一份文件可能被切成多個片段命中，回傳時以文件為單位去重。"""
+    """同一份文件可能被切成多個片段命中，回傳時以文件為單位去重。
+
+    回答裡的 [n] 指的是第 n 個片段，所以每個來源都記下它涵蓋哪些編號（refs），
+    前端才能把 [2] 正確對應到文件，而不是對應到去重後的第 2 份文件。
+    """
     seen: dict[str, dict] = {}
-    for d in docs:
-        if d.document_id not in seen:
-            seen[d.document_id] = {
-                "title": d.title,
-                "url": d.url,
-                "space": d.space,
-                "score": round(d.score, 3),
-                "snippet": d.content[:160],
-            }
+    for n, d in enumerate(docs, 1):
+        if d.document_id in seen:
+            seen[d.document_id]["refs"].append(n)
+            continue
+        seen[d.document_id] = {
+            "title": d.title,
+            "url": d.url,
+            "space": d.space,
+            "score": round(d.score, 3),
+            "snippet": d.content[:160],
+            "refs": [n],
+        }
     return list(seen.values())
 
 

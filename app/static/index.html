@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knowledge Agent</title>
+<style>
+/* 刻意不載入任何外部字型或 CDN：地端隔離環境也能完整顯示 */
+:root {
+  --bg: #f5f6f8; --panel: #ffffff; --sidebar: #eceef2; --fg: #1c2230; --muted: #646d7d; --line: #dcdfe6;
+  --accent: #2b59c3; --accent-fg: #ffffff; --accent-soft: #e5ecfa;
+  --user: #2b59c3; --user-fg: #ffffff; --cite: #dbe5fb; --cite-fg: #1f469e;
+  --ok-soft: #e2f2e9; --ok: #1d6f45; --warn-soft: #f9eedb; --warn: #8a5200; --muted-soft: #eceef2; --err-soft: #fbe4e2; --err: #a8291d;
+  --font: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111419; --panel: #181c23; --sidebar: #14171d; --fg: #e3e6ec; --muted: #949cab; --line: #2a303a;
+    --accent: #7c9cf0; --accent-fg: #0d1117; --accent-soft: #1e2840;
+    --user: #33528f; --user-fg: #eef2fb; --cite: #23304d; --cite-fg: #aac0f5;
+    --ok-soft: #17301f; --ok: #6bc795; --warn-soft: #33270f; --warn: #e2ad57; --muted-soft: #222731; --err-soft: #371b19; --err: #ef8d82;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.65 var(--font); }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app { display: grid; grid-template-columns: 272px 1fr; height: 100%; }
+aside { background: var(--sidebar); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+.brand { padding: 18px 18px 12px; display: grid; gap: 2px; }
+.brand b { font-size: 1.02rem; }
+.brand span { font-size: .78rem; color: var(--muted); }
+.new { margin: 4px 14px 12px; padding: 9px 12px; border: 1px solid var(--line); background: var(--panel); border-radius: 8px; text-align: left; font-weight: 500; }
+.new:hover { border-color: var(--accent); }
+.convs { list-style: none; margin: 0; padding: 0 8px 12px; overflow-y: auto; flex: 1; display: grid; gap: 2px; align-content: start; }
+.convs button { width: 100%; text-align: left; border: 0; background: transparent; padding: 8px 10px; border-radius: 7px; display: grid; gap: 1px; }
+.convs button:hover { background: var(--muted-soft); }
+.convs button[aria-current="true"] { background: var(--accent-soft); }
+.convs .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: .9rem; }
+.convs .d { font-size: .74rem; color: var(--muted); }
+.status { padding: 12px 18px; border-top: 1px solid var(--line); font-size: .76rem; color: var(--muted); display: flex; gap: 8px; align-items: center; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+.dot.on { background: var(--ok); }
+
+main { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.thread { flex: 1; overflow-y: auto; padding: 28px 24px 12px; }
+.inner { max-width: 760px; margin: 0 auto; display: grid; gap: 22px; }
+.empty { padding-top: 8vh; display: grid; gap: 18px; }
+.empty h1 { margin: 0; font-size: 1.5rem; }
+.empty p { margin: 0; color: var(--muted); max-width: 56ch; }
+.suggest { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.suggest button { text-align: left; border: 1px solid var(--line); background: var(--panel); border-radius: 10px; padding: 12px 14px; display: grid; gap: 2px; }
+.suggest button:hover { border-color: var(--accent); }
+.suggest small { color: var(--muted); font-size: .76rem; }
+
+.msg.user { justify-self: end; max-width: 80%; background: var(--user); color: var(--user-fg); padding: 10px 14px; border-radius: 14px 14px 4px 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg.bot { display: grid; gap: 10px; min-width: 0; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: .76rem; }
+.tag { padding: 1px 9px; border-radius: 999px; font-weight: 600; }
+.tag.knowledge { background: var(--accent-soft); color: var(--accent); }
+.tag.directory { background: var(--warn-soft); color: var(--warn); }
+.tag.chitchat, .tag.refused { background: var(--muted-soft); color: var(--muted); }
+.rewrite { color: var(--muted); }
+.answer { overflow-wrap: anywhere; }
+.answer p { margin: 0 0 6px; }
+.answer ul { margin: 0 0 6px; padding-left: 1.3em; }
+.cite { display: inline-block; min-width: 1.5em; padding: 0 5px; margin: 0 1px; border: 0; border-radius: 5px; background: var(--cite); color: var(--cite-fg); font-size: .74rem; font-weight: 700; line-height: 1.6; vertical-align: 1px; }
+.sources { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.src { border: 1px solid var(--line); background: var(--panel); border-radius: 9px; padding: 10px 12px; display: grid; gap: 4px; min-width: 0; transition: border-color .15s, box-shadow .15s; }
+.src.hl { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.src .h { display: flex; gap: 8px; align-items: baseline; justify-content: space-between; }
+.src .h b { font-size: .88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.src .n { font-family: var(--mono); font-size: .72rem; color: var(--cite-fg); background: var(--cite); padding: 0 6px; border-radius: 4px; flex: none; }
+.src .s { font-size: .78rem; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.src .m { font-size: .72rem; color: var(--muted); font-family: var(--mono); display: flex; gap: 10px; flex-wrap: wrap; }
+.src a { color: inherit; }
+.meta { font-family: var(--mono); font-size: .72rem; color: var(--muted); display: flex; gap: 14px; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
+.typing { display: flex; gap: 5px; padding: 8px 0; }
+.typing i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); animation: blink 1.2s infinite both; }
+.typing i:nth-child(2) { animation-delay: .2s; } .typing i:nth-child(3) { animation-delay: .4s; }
+@keyframes blink { 0%, 80%, 100% { opacity: .25 } 40% { opacity: 1 } }
+.error { background: var(--err-soft); color: var(--err); border-radius: 9px; padding: 10px 14px; }
+
+.composer { border-top: 1px solid var(--line); background: var(--bg); padding: 14px 24px 18px; }
+.composer form { max-width: 760px; margin: 0 auto; display: flex; gap: 10px; align-items: flex-end; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 8px 8px 8px 14px; }
+.composer form:focus-within { border-color: var(--accent); }
+textarea { flex: 1; border: 0; background: transparent; resize: none; max-height: 160px; padding: 6px 0; outline: none; }
+.send { border: 0; background: var(--accent); color: var(--accent-fg); border-radius: 8px; padding: 8px 16px; font-weight: 600; }
+.send:disabled { opacity: .5; cursor: default; }
+.hint { max-width: 760px; margin: 8px auto 0; font-size: .74rem; color: var(--muted); }
+
+.menu { display: none; }
+@media (max-width: 760px) {
+  .app { grid-template-columns: 1fr; }
+  aside { position: fixed; inset: 0 auto 0 0; width: 82%; max-width: 300px; z-index: 5; transform: translateX(-100%); transition: transform .2s; }
+  aside.open { transform: none; box-shadow: 0 0 0 100vmax rgba(0,0,0,.35); }
+  .menu { display: inline-flex; position: absolute; top: 12px; left: 12px; border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 4px 10px; z-index: 4; }
+  .thread { padding: 56px 16px 12px; }
+  .composer { padding: 10px 16px 14px; }
+  .msg.user { max-width: 92%; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside id="sidebar" aria-label="對話紀錄">
+    <div class="brand"><b>Knowledge Agent</b><span>公司 Confluence 知識庫助理</span></div>
+    <button class="new" id="new-chat" type="button">＋ 新對話</button>
+    <ul class="convs" id="convs"></ul>
+    <div class="status"><span class="dot" id="dot"></span><span id="status">連線中…</span></div>
+  </aside>
+
+  <main>
+    <button class="menu" id="menu" type="button" aria-controls="sidebar">對話紀錄</button>
+    <div class="thread" id="thread" aria-live="polite"><div class="inner" id="inner"></div></div>
+    <div class="composer">
+      <form id="form">
+        <textarea id="q" rows="1" placeholder="問制度、文件，或某件事該找誰…" aria-label="輸入問題"></textarea>
+        <button class="send" id="send" type="submit">送出</button>
+      </form>
+      <div class="hint">Enter 送出，Shift + Enter 換行。回答只根據知識庫內容，點 [編號] 可以看出處。</div>
+    </div>
+  </main>
+</div>
+
+<script>
+const API = '/api/v1';
+const SUGGESTIONS = [
+  ['特休要提前幾天申請？', '請假規定'],
+  ['星期五可以部署到正式環境嗎？', '部署 SOP'],
+  ['VPN 有問題要找誰？', '查人員通訊錄'],
+  ['可以把客戶資料貼到 ChatGPT 嗎？', '資訊安全政策'],
+];
+const ROUTE_LABEL = { knowledge: '知識庫', directory: '找人', chitchat: '閒聊' };
+
+const $ = (id) => document.getElementById(id);
+const inner = $('inner'), thread = $('thread'), q = $('q'), send = $('send');
+let conversationId = null;
+let busy = false;
+
+function esc(s) {
+  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+
+// 簡單的 Markdown：段落、條列、粗體，以及把 [n] 變成可點的引用
+function renderAnswer(text, msgId) {
+  const lines = esc(text).split('\n');
+  let html = '', inList = false;
+  for (const raw of lines) {
+    const line = raw.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\[(\d+)\]/g, (_, n) => `<button class="cite" type="button" data-msg="${msgId}" data-ref="${n}" aria-label="查看出處 ${n}">${n}</button>`);
+    const item = /^\s*[-*•]\s+(.*)/.exec(line);
+    if (item) { if (!inList) { html += '<ul>'; inList = true; } html += `<li>${item[1]}</li>`; continue; }
+    if (inList) { html += '</ul>'; inList = false; }
+    if (line.trim()) html += `<p>${line}</p>`;
+  }
+  return html + (inList ? '</ul>' : '');
+}
+
+function sourceCards(sources, msgId) {
+  if (!sources || !sources.length) return '';
+  return `<div class="sources">${sources.map((s, i) => {
+    const refs = (s.refs && s.refs.length ? s.refs : [i + 1]);
+    const link = s.url && /^https?:/.test(s.url) ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">開啟原文</a>` : esc(s.url || '');
+    return `<div class="src" data-msg="${msgId}" data-refs="${refs.join(',')}">
+      <div class="h"><b title="${esc(s.title)}">${esc(s.title)}</b><span class="n">[${refs.join(', ')}]</span></div>
+      <div class="s">${esc(s.snippet.replace(/^【[^】]*】\s*/, '').replace(/[#*]/g, ''))}</div>
+      <div class="m"><span>${esc(s.space)}</span><span>相似度 ${s.score.toFixed(2)}</span><span>${link}</span></div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function botMessage(m, msgId) {
+  const refused = m.route === 'knowledge' && (!m.sources || !m.sources.length);
+  const tags = [`<span class="tag ${m.route}">${ROUTE_LABEL[m.route] || m.route}</span>`];
+  if (refused) tags.push('<span class="tag refused">知識庫查無資料</span>');
+  if (m.standalone_question && m.question && m.standalone_question !== m.question) {
+    tags.push(`<span class="rewrite">理解為：${esc(m.standalone_question)}</span>`);
+  }
+  const meta = m.usage ? `<div class="meta"><span>LLM 呼叫 ${m.usage.llm_calls} 次</span><span>${m.usage.prompt_tokens.toLocaleString()} / ${m.usage.completion_tokens.toLocaleString()} tokens</span><span>${(m.latency_ms / 1000).toFixed(2)} 秒</span></div>` : '';
+  return `<div class="msg bot"><div class="tags">${tags.join('')}</div><div class="answer">${renderAnswer(m.answer, msgId)}</div>${sourceCards(m.sources, msgId)}${meta}</div>`;
+}
+
+function showEmpty() {
+  inner.innerHTML = `<div class="empty">
+    <h1>想查什麼？</h1>
+    <p>我會從公司的 Confluence 找答案並附上出處；如果是要找負責窗口，我會查員工通訊錄。知識庫裡沒有的內容，我會直接告訴你查不到，不會自己編。</p>
+    <div class="suggest">${SUGGESTIONS.map(([text, hint]) => `<button type="button" data-q="${esc(text)}">${esc(text)}<small>${esc(hint)}</small></button>`).join('')}</div>
+  </div>`;
+}
+
+function append(html) {
+  inner.querySelector('.empty')?.remove();
+  inner.insertAdjacentHTML('beforeend', html);
+  thread.scrollTop = thread.scrollHeight;
+}
+
+let msgSeq = 0;
+async function ask(question) {
+  if (busy || !question.trim()) return;
+  busy = true; send.disabled = true;
+  append(`<div class="msg user">${esc(question)}</div>`);
+  append('<div class="typing" id="typing" aria-label="回答中"><i></i><i></i><i></i></div>');
+  try {
+    const res = await fetch(`${API}/ask`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, conversation_id: conversationId }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.detail || `伺服器回應 ${res.status}`);
+    conversationId = body.conversation_id;
+    $('typing').remove();
+    append(botMessage({ ...body, question }, ++msgSeq));
+    loadConversations();
+  } catch (e) {
+    $('typing')?.remove();
+    append(`<div class="error">沒有取得回答：${esc(e.message === 'Failed to fetch' ? '連不到伺服器，請確認服務是否啟動' : e.message)}</div>`);
+  } finally {
+    busy = false; send.disabled = false; q.focus();
+  }
+}
+
+async function loadConversations() {
+  try {
+    const list = await (await fetch(`${API}/conversations?limit=30`)).json();
+    $('convs').innerHTML = list.map((c) => `<li><button type="button" data-id="${c.id}" aria-current="${c.id === conversationId}">
+      <span class="t">${esc(c.title)}</span><span class="d">${new Date(c.updated_at).toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · ${c.message_count / 2} 則問答</span></button></li>`).join('');
+  } catch { /* 側欄載入失敗不影響提問 */ }
+}
+
+async function openConversation(id) {
+  const c = await (await fetch(`${API}/conversations/${id}`)).json();
+  conversationId = id; inner.innerHTML = '';
+  let lastQ = '';
+  for (const m of c.messages) {
+    if (m.role === 'user') { lastQ = m.content; append(`<div class="msg user">${esc(m.content)}</div>`); }
+    else append(botMessage({ route: m.route, answer: m.content, sources: m.sources, question: lastQ }, ++msgSeq));
+  }
+  loadConversations();
+  $('sidebar').classList.remove('open');
+}
+
+async function checkHealth() {
+  try {
+    const h = await (await fetch('/health')).json();
+    $('dot').classList.add('on');
+    $('status').textContent = `已連線 · ${h.llm_provider} / ${h.model}`;
+  } catch { $('status').textContent = '無法連線到服務'; }
+}
+
+// 點 [n]：標出對應的來源卡片
+inner.addEventListener('click', (e) => {
+  const cite = e.target.closest('.cite');
+  if (cite) {
+    inner.querySelectorAll('.src.hl').forEach((el) => el.classList.remove('hl'));
+    const card = [...inner.querySelectorAll(`.src[data-msg="${cite.dataset.msg}"]`)]
+      .find((el) => el.dataset.refs.split(',').includes(cite.dataset.ref));
+    if (card) { card.classList.add('hl'); card.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+    return;
+  }
+  const s = e.target.closest('.suggest button');
+  if (s) ask(s.dataset.q);
+});
+$('convs').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) openConversation(b.dataset.id); });
+$('new-chat').addEventListener('click', () => { conversationId = null; showEmpty(); loadConversations(); $('sidebar').classList.remove('open'); q.focus(); });
+$('menu').addEventListener('click', () => $('sidebar').classList.toggle('open'));
+$('form').addEventListener('submit', (e) => { e.preventDefault(); const v = q.value; q.value = ''; autosize(); ask(v); });
+q.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('form').requestSubmit(); } });
+function autosize() { q.style.height = 'auto'; q.style.height = Math.min(q.scrollHeight, 160) + 'px'; }
+q.addEventListener('input', autosize);
+
+showEmpty(); loadConversations(); checkHealth();
+</script>
+</body>
+</html>
